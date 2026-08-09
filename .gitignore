@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>江州市城市治理模拟系统</title>
+    <!-- Font Awesome & ECharts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; }
+        body { background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+
+        /* 侧边栏 */
+        .sidebar { width: 240px; background: #1a2a3a; color: #ecf0f1; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.1); z-index: 10; }
+        .sidebar .brand { padding: 24px 20px; border-bottom: 1px solid #2c3e50; font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 10px; color: #f1c40f; }
+        .sidebar .brand i { font-size: 24px; }
+        .sidebar .nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+        .sidebar .nav .item { padding: 14px 24px; cursor: pointer; display: flex; align-items: center; gap: 14px; color: #b0bec5; transition: 0.2s; border-left: 3px solid transparent; }
+        .sidebar .nav .item:hover { background: #243447; color: #fff; }
+        .sidebar .nav .item.active { background: #243447; color: #fff; border-left-color: #e74c3c; }
+        .sidebar .nav .item i { width: 20px; text-align: center; }
+
+        /* 主区域 */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f0f2f5; }
+        .topbar { background: #fff; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e8e8e8; height: 64px; flex-shrink: 0; }
+        .topbar .user-info { display: flex; align-items: center; gap: 16px; }
+        .topbar .user-info .avatar { width: 36px; height: 36px; border-radius: 50%; background: #c0392b; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .topbar .user-info .title { font-weight: 500; color: #2c3e50; }
+        .topbar .user-info .badge { background: #e74c3c; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; }
+
+        .content { flex: 1; padding: 24px 32px; overflow-y: auto; background: #f0f2f5; }
+        .page { display: none; animation: fadeIn 0.3s; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 卡片 */
+        .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px; border: 1px solid #e8ecf1; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1a2a3a; display: flex; align-items: center; gap: 8px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; }
+
+        .stat-card { background: #fff; padding: 20px; border-radius: 12px; border-left: 4px solid #3498db; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .stat-card .label { color: #7f8c8d; font-size: 14px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; color: #2c3e50; margin: 6px 0; }
+        .stat-card .trend { font-size: 13px; color: #27ae60; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #2c3e50; color: #fff; }
+        .btn-primary:hover { background: #1a2a3a; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success { background: #27ae60; color: #fff; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-warning { background: #f39c12; color: #fff; }
+        .btn-warning:hover { background: #d68910; }
+        .btn-outline { background: transparent; border: 1px solid #bdc3c7; }
+        .btn-outline:hover { background: #ecf0f1; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table th { text-align: left; padding: 12px 8px; border-bottom: 2px solid #ecf0f1; color: #7f8c8d; font-weight: 600; }
+        table td { padding: 10px 8px; border-bottom: 1px solid #ecf0f1; vertical-align: middle; }
+        table tr:hover { background: #f8f9fa; }
+        .tag { padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .tag-red { background: #fde8e8; color: #c0392b; }
+        .tag-green { background: #e8f8ed; color: #27ae60; }
+        .tag-blue { background: #e8f0fe; color: #2980b9; }
+        .tag-gray { background: #f0f0f0; color: #7f8c8d; }
+        .tag-gold { background: #fef9e7; color: #b7950b; }
+
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: 16px; padding: 32px; max-width: 720px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .modal h2 { margin-bottom: 20px; border-bottom: 1px solid #ecf0f1; padding-bottom: 12px; }
+        .modal .close { float: right; background: none; border: none; font-size: 24px; cursor: pointer; color: #95a5a6; }
+
+        .tree-item { padding: 6px 0; cursor: pointer; }
+        .tree-item:hover { color: #2980b9; }
+        .tree-item .chevron { margin-right: 6px; display: inline-block; transition: 0.2s; }
+        .tree-item .chevron.open { transform: rotate(90deg); }
+        .tree-children { padding-left: 20px; display: none; }
+        .tree-children.open { display: block; }
+
+        .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .mt-16 { margin-top: 16px; }
+        .mb-16 { margin-bottom: 16px; }
+        .w-full { width: 100%; }
+
+        .vote-item { padding: 8px 12px; border-radius: 6px; margin: 4px 0; display: flex; justify-content: space-between; }
+        .vote-yes { background: #e8f8ed; color: #1e8449; }
+        .vote-no { background: #fde8e8; color: #c0392b; }
+        .vote-abstain { background: #fef9e7; color: #9a7d0a; }
+
+        .badge-count { background: #e74c3c; color: #fff; border-radius: 50%; padding: 2px 8px; font-size: 12px; margin-left: 8px; }
+
+        @media (max-width: 900px) { .sidebar { width: 80px; } .sidebar .brand span, .sidebar .nav .item span { display: none; } .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar">
+    <div class="brand"><i class="fas fa-landmark"></i><span>江州·治理</span></div>
+    <div class="nav" id="navMenu">
+        <div class="item active" data-page="dashboard"><i class="fas fa-home"></i><span>首页</span></div>
+        <div class="item" data-page="org"><i class="fas fa-sitemap"></i><span>组织架构</span></div>
+        <div class="item" data-page="personnel"><i class="fas fa-users-cog"></i><span>人事管理</span></div>
+        <div class="item" data-page="meetings"><i class="fas fa-gavel"></i><span>会议管理</span></div>
+        <div class="item" data-page="projects"><i class="fas fa-project-diagram"></i><span>项目管理</span></div>
+        <div class="item" data-page="development"><i class="fas fa-chart-line"></i><span>城市发展</span></div>
+        <div class="item" data-page="cabinet"><i class="fas fa-handshake"></i><span>执政班底</span></div>
+        <div class="item" data-page="secretary"><i class="fas fa-user-tie"></i><span>秘书管理</span></div>
+        <div class="item" data-page="investigate"><i class="fas fa-binoculars"></i><span>调研视察</span></div>
+        <div class="item" data-page="settings"><i class="fas fa-cog"></i><span>设置</span></div>
+    </div>
+</div>
+
+<!-- 主区域 -->
+<div class="main">
+    <div class="topbar">
+        <div><i class="fas fa-bars" style="font-size:20px; cursor:pointer; color:#7f8c8d;" onclick="toggleSidebar()"></i></div>
+        <div class="user-info">
+            <span class="badge">省委常委·副书记</span>
+            <span class="title" id="playerName">市委书记 林远</span>
+            <div class="avatar">林</div>
+        </div>
+    </div>
+    <div class="content" id="appContent">
+        <!-- 各页面由JS动态渲染 -->
+    </div>
+</div>
+
+<!-- 模态框 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+        <button class="close" onclick="closeModal()">&times;</button>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // 1. 数据生成器 (模拟数据库)
+    // ============================================================
+    const SURNAMES = ['张','王','李','刘','陈','杨','黄','吴','赵','周','徐','孙','马','朱','胡','林','郭','何','高','郑'];
+    const GIVEN_NAMES = ['伟','强','丽','敏','静','涛','军','勇','杰','倩','鹏','宇','洋','宁','婷','旭','阳','超','明','雪'];
+
+    function randomName() { return SURNAMES[Math.floor(Math.random()*SURNAMES.length)] + GIVEN_NAMES[Math.floor(Math.random()*GIVEN_NAMES.length)]; }
+    function random(min,max) { return Math.floor(Math.random()*(max-min+1))+min; }
+    function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+    // 关系等级
+    const RELATIONS = ['核心盟友','一般盟友','中立','对立','政敌'];
+    const RELATION_VALUES = { '核心盟友': 85, '一般盟友': 65, '中立': 50, '对立': 30, '政敌': 15 };
+
+    // 干部工厂
+    function createCadre(id, name,职务,职级,部门Id=null, 区县Id=null) {
+        const rel = pick(RELATIONS);
+        return {
+            id, name, 职务, 职级, 部门Id, 区县Id,
+            任职年限: random(1,12),
+            政绩: { 经济: random(60,95), 民生: random(60,95), 生态: random(60,95), 稳定: random(60,95) },
+            关系等级: rel,
+            关系值: RELATION_VALUES[rel],
+            忠诚度: random(40,85),
+            能力: { 行政: random(60,90), 经济: random(60,90), 协调: random(60,90) },
+            背景: pick(['无特殊','直系亲属省级领导','岳父省级领导','与市长关系密切']),
+            项目负责: [],
+            历史职务: [职务]
+        };
+    }
+
+    // 构建全市数据
+    let appData = {
+        cadres: [],
+        departments: [],
+        districts: [],
+        projects: [],
+        meetingPending: [],
+        meetingHistory: [],
+        investigationHistory: [],
+        cabinetMembers: [],
+        secretary: null,
+        secretaryHistory: [],
+        player: null,
+        cityIndicators: { GDP: 1280, 财政: 320, 就业率: 94.2, 民生指数: 82, 生态指数: 76, 稳定指数: 88 }
+    };
+
+    function initData() {
+        // 1. 创建玩家 (书记)
+        const player = createCadre('p1', '林远', '市委书记', '副部级');
+        player.关系等级 = '核心盟友'; player.关系值 = 100; player.忠诚度 = 100;
+        appData.player = player;
+        appData.cadres.push(player);
+
+        // 2. 市委常委 (10人)
+        const 常委名单 = ['市长 陈建国','市委副书记 王立群','常务副市长 李明辉','组织部长 赵志刚','宣传部长 刘思雅','纪委书记 周正清','政法委书记 吴卫东','统战部长 郑国良','凤瑶区委书记 高翔'];
+        常委名单.forEach((t,i) => {
+            const [职, name] = t.split(' ');
+            const c = createCadre('s'+i, name, '市委常委/'+职, '正厅级');
+            if (职 === '市长') { c.关系等级 = '中立'; c.关系值 = 50; c.忠诚度 = 55; }
+            else if (职 === '市委副书记') { c.关系等级 = '一般盟友'; c.关系值 = 65; }
+            else { c.关系等级 = pick(['一般盟友','中立']); c.关系值 = c.关系等级==='一般盟友'?65:50; }
+            appData.cadres.push(c);
+        });
+
+        // 3. 副市长 (5人，含公安局长)
+        const 副市长名单 = ['副市长/公安局长 王强','副市长 李敏','副市长 张华','副市长 刘洋','副市长 陈静'];
+        副市长名单.forEach((t,i) => {
+            const [职, name] = t.split(' ');
+            const c = createCadre('v'+i, name, 职, '副厅级');
+            c.关系等级 = pick(['中立','一般盟友']); c.关系值 = c.关系等级==='一般盟友'?65:50;
+            appData.cadres.push(c);
+        });
+
+        // 4. 市人大副主任 (5人)
+        for(let i=0; i<5; i++) {
+            const c = createCadre('rd'+i, randomName(), '市人大常委会副主任', '正厅级');
+            c.关系等级 = '中立'; c.关系值 = 40;
+            appData.cadres.push(c);
+        }
+        // 5. 市政协副主席 (5人)
+        for(let i=0; i<5; i++) {
+            const c = createCadre('pp'+i, randomName(), '市政协副主席', '正厅级');
+            c.关系等级 = '中立'; c.关系值 = 40;
+            appData.cadres.push(c);
+        }
+
+        // 6. 市级部门 (精简至15个核心部门)
+        const deptNames = ['市委办公厅','市委组织部','市委宣传部','市纪委','市委政法委','市发改委','市财政局','市人社局','市住建局','市交通运输局','市农业农村局','市商务局','市卫健委','市城管委','市公安局'];
+        const deptMap = {};
+        deptNames.forEach((name,i) => {
+            const id = 'd'+i;
+            const 正职 = createCadre('d'+i+'z', randomName(), name+'局长/主任', i<6?'正厅级':'副厅级', id);
+            const 副职1 = createCadre('d'+i+'f1', randomName(), name+'副局长/副主任', i<6?'副厅级':'正处级', id);
+            const 副职2 = createCadre('d'+i+'f2', randomName(), name+'副局长/副主任', i<6?'副厅级':'正处级', id);
+            [正职,副职1,副职2].forEach(c => { c.关系等级 = pick(['中立','一般盟友']); c.关系值 = c.关系等级==='一般盟友'?65:50; });
+            appData.cadres.push(正职,副职1,副职2);
+            // 内设科室 (每个部门6-8个)
+            const 科室 = [];
+            for(let j=0; j<random(6,8); j++) {
+                const kName = ['办公室','人事科','财务科','业务一科','业务二科','综合科','政策法规科','信息科'][j%8];
+                const 科长 = createCadre('dk'+i+'_'+j, randomName(), kName+'科长', '正科级', id);
+                科长.关系等级 = '中立'; 科长.关系值 = 45;
+                appData.cadres.push(科长);
+                科室.push({ name: kName, 科长: 科长.name });
+            }
+            deptMap[id] = { id, name, 领导: [正职,副职1,副职2], 科室 };
+            appData.departments.push(deptMap[id]);
+        });
+
+        // 7. 区县 (9区3县)
+        const districtNames = ['凤瑶区','琴台区','桃仙区','汉江区','华阳区','红旗区','南山区','浦阳区','九明区','井喆县','龙门县','罗山县'];
+        const 定位 = ['文化文旅融合区','政务配套核心','城郊融合枢纽','老城经济核心','中央商务核心区','科教体育高地','生态文旅核心','数字经济核心区','高端制造基地','特色农业文旅县','县域经济龙头','生态安全屏障'];
+        districtNames.forEach((name,i) => {
+            const id = 'dist'+i;
+            const 书记 = createCadre('dist'+i+'s', randomName(), name+'区委书记', i<9?'副厅级':'正处级', null, id);
+            const 区长 = createCadre('dist'+i+'z', randomName(), name+'区长/县长', i<9?'副厅级':'正处级', null, id);
+            [书记,区长].forEach(c => { c.关系等级 = pick(['中立','一般盟友']); c.关系值 = c.关系等级==='一般盟友'?65:50; });
+            appData.cadres.push(书记,区长);
+            // 区委常委/副县长等 (简略)
+            for(let j=0; j<3; j++) {
+                const f = createCadre('dist'+i+'f'+j, randomName(), name+'区委常委', '正处级', null, id);
+                f.关系等级 = '中立'; f.关系值 = 45;
+                appData.cadres.push(f);
+            }
+            appData.districts.push({ id, name, 定位: 定位[i], 领导: [书记,区长] });
+        });
+
+        // 8. 项目 (10个)
+        const projectNames = ['华阳CBD二期','浦阳数字经济产业园','汉江老城更新','九明智能制造基地','南山生态文旅带','凤瑶文创园','琴台政务服务中心','桃仙现代农业园','红旗体育中心','龙门产业转移园'];
+        projectNames.forEach((name,i) => {
+            const p = {
+                id: 'proj'+i, name, 类型: pick(['基建','产业','民生','生态']),
+                区县: appData.districts[i%appData.districts.length].name,
+                投资: random(10,200)+'亿',
+                进度: random(10,90),
+                负责人Ids: [],
+                状态: pick(['进行中','已完工','停滞'])
+            };
+            appData.projects.push(p);
+        });
+
+        // 9. 初始化班底 (玩家初始拉拢几个)
+        appData.cabinetMembers = appData.cadres.filter(c => c.关系等级 === '核心盟友' || c.关系等级 === '一般盟友').slice(0, 4).map(c => c.id);
+
+        // 10. 随机待办事项 (初始无)
+        appData.meetingPending = [];
+        appData.meetingHistory = [];
+        appData.investigationHistory = [];
+        appData.secretary = null;
+        appData.secretaryHistory = [];
+    }
+
+    initData();
+
+    // ============================================================
+    // 2. 核心游戏引擎 (Actions)
+    // ============================================================
+    function getCadre(id) { return appData.cadres.find(c => c.id === id); }
+    function getDept(id) { return appData.departments.find(d => d.id === id); }
+    function getDist(id) { return appData.districts.find(d => d.id === id); }
+    function getProject(id) { return appData.projects.find(p => p.id === id); }
+
+    // 提交人事任免
+    function submitAppointment(cadreId, targetDeptId, targetPosition) {
+        const cadre = getCadre(cadreId);
+        if (!cadre) return alert('干部不存在');
+        const dept = getDept(targetDeptId);
+        if (!dept) return alert('部门不存在');
+        // 检查职级 (简单)
+        const item = {
+            id: 'm'+Date.now(),
+            type: '人事任免',
+            desc: `拟任 ${cadre.name} 为 ${dept.name} ${targetPosition}`,
+            cadreId, targetDeptId, targetPosition,
+            status: '待审议',
+            proposer: '市委书记 林远'
+        };
+        appData.meetingPending.push(item);
+        alert(`✅ 已提交任免：${cadre.name} -> ${dept.name} ${targetPosition}，等待常委会审议。`);
+        renderCurrentPage();
+    }
+
+    // 召开常委会 (审议所有待办)
+    function holdStandingCommittee() {
+        if (appData.meetingPending.length === 0) {
+            alert('当前无待审议事项');
+            return;
+        }
+        // 获取所有常委 (id以s开头)
+        const 常委 = appData.cadres.filter(c => c.id.startsWith('s') || c.id === 'p1');
+        const player = appData.player;
+        // 构建投票模拟
+        const results = [];
+        let yes = 0, no = 0, abstain = 0;
+        常委.forEach(c => {
+            // 概率基于关系值和忠诚度
+            const rel = c.关系值 || 50;
+            const loyalty = c.忠诚度 || 50;
+            // 基础概率: 关系值*0.6 + 忠诚度*0.4
+            let prob = (rel/100)*0.6 + (loyalty/100)*0.4;
+            // 玩家投赞成
+            if (c.id === 'p1') { prob = 1; }
+            // 随机决定
+            const rand = Math.random();
+            let vote;
+            if (rand < prob * 0.8) vote = '赞成';
+            else if (rand < prob * 0.8 + 0.15) vote = '弃权';
+            else vote = '反对';
+            if (vote === '赞成') yes++;
+            else if (vote === '反对') no++;
+            else abstain++;
+            results.push({ name: c.name, 职务: c.职务, vote });
+        });
+
+        // 展示模态框
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h2>市委常委会 · 投票结果</h2>
+            <p><strong>审议事项：</strong>${appData.meetingPending.map(m=>m.desc).join('；')}</p>
+            <div style="margin:16px 0;padding:16px;background:#f8f9fa;border-radius:8px;">
+                <div style="display:flex;gap:24px;font-weight:bold;">
+                    <span style="color:#27ae60;">赞成 ${yes}</span>
+                    <span style="color:#e74c3c;">反对 ${no}</span>
+                    <span style="color:#f39c12;">弃权 ${abstain}</span>
+                </div>
+            </div>
+            <div style="max-height:240px;overflow-y:auto;">
+                ${results.map(r => `<div class="vote-item vote-${r.vote==='赞成'?'yes':r.vote==='反对'?'no':'abstain'}">${r.name} (${r.职务}) <strong>${r.vote}</strong></div>`).join('')}
+            </div>
+            <div class="flex mt-16">
+                <button class="btn btn-success" onclick="confirmVote(true)">✅ 通过 (书记签字)</button>
+                <button class="btn btn-danger" onclick="confirmVote(false)">🚫 一票否决</button>
+            </div>
+        `;
+        document.getElementById('modalOverlay').classList.add('show');
+        // 存储当前投票结果供确认使用
+        window._pendingVote = { results, yes, no, abstain };
+    }
+
+    function confirmVote(pass) {
+        const pending = appData.meetingPending;
+        if (pass) {
+            // 通过：执行任免
+            pending.forEach(item => {
+                const cadre = getCadre(item.cadreId);
+                const dept = getDept(item.targetDeptId);
+                if (cadre && dept) {
+                    cadre.职务 = `${dept.name} ${item.targetPosition}`;
+                    cadre.部门Id = item.targetDeptId;
+                    cadre.历史职务.push(`${dept.name} ${item.targetPosition}`);
+                    // 更新部门领导列表 (简单替换)
+                    const existing = dept.领导.find(l => l.职务.includes(item.targetPosition));
+                    if (existing) {
+                        const idx = dept.领导.indexOf(existing);
+                        dept.领导[idx] = cadre;
+                    } else {
+                        dept.领导.push(cadre);
+                    }
+                }
+            });
+            appData.meetingHistory.push({ time: new Date().toLocaleString(), items: pending, result: '通过' });
+            appData.meetingPending = [];
+            alert('✅ 人事任免已生效！组织架构已更新。');
+        } else {
+            // 否决
+            appData.meetingHistory.push({ time: new Date().toLocaleString(), items: pending, result: '否决 (书记一票否决)' });
+            appData.meetingPending = [];
+            alert('🚫 已行使一票否决权，任免被驳回。');
+        }
+        closeModal();
+        renderCurrentPage();
+    }
+
+    // 秘书功能
+    function selectSecretary(cadreId) {
+        const c = getCadre(cadreId);
+        if (!c) return;
+        if (appData.secretary) {
+            appData.secretaryHistory.push({ ...appData.secretary, end: new Date().toLocaleString() });
+        }
+        appData.secretary = { id: c.id, name: c.name, 职务: '市委办公厅文秘室副主任', 任职时间: new Date().toLocaleString(), 忠诚度: c.忠诚度 };
+        alert(`📋 ${c.name} 已被任命为市委书记秘书。`);
+        renderCurrentPage();
+    }
+
+    function secretarySendNotice(target, type, content) {
+        if (!appData.secretary) return alert('请先选拔秘书');
+        alert(`📨 秘书 ${appData.secretary.name} 已向 ${target} 发送${type}通知。\n内容：${content}`);
+        // 影响关系 (随机)
+        const targetCadre = appData.cadres.find(c => c.职务.includes(target) || c.name.includes(target));
+        if (targetCadre) {
+            const delta = type === '正式通知' ? 5 : -3;
+            targetCadre.关系值 = Math.min(100, Math.max(0, (targetCadre.关系值||50) + delta));
+            targetCadre.关系等级 = targetCadre.关系值 > 70 ? '一般盟友' : targetCadre.关系值 > 50 ? '中立' : '对立';
+            alert(`💡 与 ${targetCadre.name} 的关系变化 ${delta>0?'+':''}${delta}`);
+        }
+        renderCurrentPage();
+    }
+
+    // 调研
+    function conductInvestigation(type, target, companions) {
+        const findings = [];
+        const issues = ['工作流程规范','民生工程推进较快','环保存在隐患','经济数据亮眼','干部作风良好','存在形式主义倾向','安全生产需加强'];
+        for(let i=0; i<random(2,4); i++) {
+            findings.push(pick(issues));
+        }
+        const report = {
+            id: 'inv'+Date.now(),
+            type, target, companions: companions.join(','),
+            time: new Date().toLocaleString(),
+            findings: findings.join('；'),
+            impact: random(-10,15)
+        };
+        appData.investigationHistory.push(report);
+        // 影响相关干部政绩
+        const targetCadre = appData.cadres.find(c => c.职务.includes(target) || c.name.includes(target));
+        if (targetCadre) {
+            targetCadre.政绩.民生 = Math.min(100, Math.max(40, (targetCadre.政绩.民生||50) + report.impact));
+            if (report.impact > 0) targetCadre.关系值 = Math.min(100, (targetCadre.关系值||50) + 5);
+            else targetCadre.关系值 = Math.max(0, (targetCadre.关系值||50) - 5);
+        }
+        alert(`🔍 调研完成！\n类型：${type}\n对象：${target}\n发现：${report.findings}\n影响：${report.impact>0?'+':''}${report.impact}`);
+        renderCurrentPage();
+    }
+
+    // 班底互动
+    function interactWithCadre(cadreId, action) {
+        const c = getCadre(cadreId);
+        if (!c) return;
+        if (action === '提升') {
+            c.关系值 = Math.min(100, (c.关系值||50) + 15);
+            c.忠诚度 = Math.min(100, (c.忠诚度||50) + 10);
+            c.关系等级 = c.关系值 > 70 ? '一般盟友' : c.关系值 > 50 ? '中立' : '对立';
+        } else {
+            c.关系值 = Math.max(0, (c.关系值||50) - 15);
+            c.忠诚度 = Math.max(0, (c.忠诚度||50) - 10);
+            c.关系等级 = c.关系值 > 70 ? '一般盟友' : c.关系值 > 50 ? '中立' : '对立';
+        }
+        alert(`🤝 与 ${c.name} 互动完成，当前关系值：${c.关系值}，忠诚度：${c.忠诚度}`);
+        renderCurrentPage();
+    }
+
+    // ============================================================
+    // 3. 渲染引擎 (页面)
+    // ============================================================
+    let currentPage = 'dashboard';
+
+    function navigate(page) {
+        currentPage = page;
+        document.querySelectorAll('.nav .item').forEach(el => {
+            el.classList.toggle('active', el.dataset.page === page);
+        });
+        renderCurrentPage();
+    }
+
+    function renderCurrentPage() {
+        const content = document.getElementById('appContent');
+        switch(currentPage) {
+            case 'dashboard': content.innerHTML = renderDashboard(); break;
+            case 'org': content.innerHTML = renderOrg(); break;
+            case 'personnel': content.innerHTML = renderPersonnel(); break;
+            case 'meetings': content.innerHTML = renderMeetings(); break;
+            case 'projects': content.innerHTML = renderProjects(); break;
+            case 'development': content.innerHTML = renderDevelopment(); break;
+            case 'cabinet': content.innerHTML = renderCabinet(); break;
+            case 'secretary': content.innerHTML = renderSecretary(); break;
+            case 'investigate': content.innerHTML = renderInvestigate(); break;
+            default: content.innerHTML = '<div class="card"><h2>设置</h2><p>存档/读档功能开发中...</p></div>';
+        }
+        // 绑定事件
+        bindEvents();
+        // 渲染图表 (如果有)
+        if(currentPage === 'development') setTimeout(renderCharts, 100);
+    }
+
+    // ----- 首页 -----
+    function renderDashboard() {
+        const p = appData.player;
+        const pending = appData.meetingPending.length;
+        const projects = appData.projects;
+        const avgProgress = projects.reduce((s,p) => s+p.进度, 0) / projects.length;
+        const indicators = appData.cityIndicators;
+        return `
+            <div class="grid-4">
+                <div class="stat-card"><div class="label">全市GDP (亿元)</div><div class="value">${indicators.GDP}</div><div class="trend"><i class="fas fa-arrow-up"></i> +3.2%</div></div>
+                <div class="stat-card"><div class="label">财政收入 (亿元)</div><div class="value">${indicators.财政}</div><div class="trend"><i class="fas fa-arrow-up"></i> +1.8%</div></div>
+                <div class="stat-card"><div class="label">就业率</div><div class="value">${indicators.就业率}%</div><div class="trend"><i class="fas fa-minus"></i> 稳定</div></div>
+                <div class="stat-card"><div class="label">民生指数</div><div class="value">${indicators.民生指数}</div><div class="trend"><i class="fas fa-arrow-up"></i> +2</div></div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-user-circle"></i> 执政官信息</div>
+                    <p><strong>${p.name}</strong> · ${p.职务} (${p.职级})</p>
+                    <p>晋升积分: <span class="badge" style="background:#2980b9;">${random(60,90)}</span> / 100</p>
+                    <p>执政班底: ${appData.cabinetMembers.length} 人</p>
+                    <div class="flex mt-16">
+                        <span class="tag tag-blue">待审议: ${pending} 项</span>
+                        <span class="tag tag-green">项目平均进度: ${Math.round(avgProgress)}%</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-bullhorn"></i> 快速入口</div>
+                    <div class="grid-3">
+                        <button class="btn btn-primary" onclick="navigate('personnel')"><i class="fas fa-users-cog"></i> 人事</button>
+                        <button class="btn btn-success" onclick="navigate('meetings')"><i class="fas fa-gavel"></i> 会议</button>
+                        <button class="btn btn-warning" onclick="navigate('projects')"><i class="fas fa-project-diagram"></i> 项目</button>
+                        <button class="btn btn-outline" onclick="navigate('org')"><i class="fas fa-sitemap"></i> 组织</button>
+                        <button class="btn btn-outline" onclick="navigate('development')"><i class="fas fa-chart-line"></i> 发展</button>
+                        <button class="btn btn-outline" onclick="navigate('investigate')"><i class="fas fa-binoculars"></i> 调研</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-flag"></i> 区县定位 · 全域格局</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${appData.districts.map(d => `<span class="tag tag-blue">${d.name} (${d.定位})</span>`).join('')}
+                </div>
+                <div style="margin-top:12px;font-size:14px;color:#7f8c8d;">双核引领 (华阳+浦阳) · 三极支撑 (九明+汉江+南山) · 四区赋能 · 三县兜底</div>
+            </div>
+        `;
+    }
+
+    // ----- 组织架构 -----
+    function renderOrg() {
+        let html = `<div class="card"><div class="card-title"><i class="fas fa-sitemap"></i> 江州市组织架构</div>`;
+        // 市级领导班子
+        html += `<h4>市委常委 (10人)</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;">`;
+        appData.cadres.filter(c => c.职务.includes('市委常委') || c.id === 'p1').forEach(c => {
+            html += `<span class="tag tag-gold">${c.name} (${c.职务})</span>`;
+        });
+        html += `</div>`;
+
+        // 部门列表
+        html += `<h4>市级部门</h4>`;
+        appData.departments.forEach(d => {
+            html += `<div style="border:1px solid #ecf0f1;border-radius:8px;padding:12px;margin-bottom:12px;">`;
+            html += `<div style="font-weight:600;font-size:16px;">${d.name} <span class="tag tag-gray">${d.领导[0]?.职级 || '正厅级'}</span></div>`;
+            html += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0;">`;
+            d.领导.forEach(l => {
+                html += `<span class="tag tag-blue">${l.name} (${l.职务})</span>`;
+            });
+            html += `</div>`;
+            html += `<div style="font-size:13px;color:#7f8c8d;">内设科室: ${d.科室.map(k => `${k.name} (科长:${k.科长})`).join(' | ')}</div>`;
+            html += `</div>`;
+        });
+
+        // 区县
+        html += `<h4>区县架构</h4>`;
+        appData.districts.forEach(d => {
+            html += `<div style="border:1px solid #ecf0f1;border-radius:8px;padding:12px;margin-bottom:12px;">`;
+            html += `<div style="font-weight:600;font-size:16px;">${d.name} <span class="tag tag-gray">${d.定位}</span></div>`;
+            html += `<div>领导: ${d.领导.map(l => `${l.name}(${l.职务})`).join(' | ')}</div>`;
+            html += `</div>`;
+        });
+        html += `</div>`;
+        return html;
+    }
+
+    // ----- 人事管理 -----
+    function renderPersonnel() {
+        const depts = appData.departments;
+        const cadres = appData.cadres;
+        let html = `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user-plus"></i> 人事任免</div>
+                <div class="flex">
+                    <select id="selDept" class="btn btn-outline" style="padding:8px;">
+                        ${depts.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                    </select>
+                    <select id="selPosition" class="btn btn-outline" style="padding:8px;">
+                        <option value="局长/主任">正职 (局长/主任)</option>
+                        <option value="副局长/副主任">副职 (副局长/副主任)</option>
+                    </select>
+                    <select id="selCadre" class="btn btn-outline" style="padding:8px;">
+                        ${cadres.filter(c => !c.职务.includes('市委书记')).map(c => `<option value="${c.id}">${c.name} (${c.职务})</option>`).join('')}
+                    </select>
+                    <button class="btn btn-primary" onclick="submitAppointment(document.getElementById('selCadre').value, document.getElementById('selDept').value, document.getElementById('selPosition').value)">提交任免</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user-graduate"></i> 干部档案 & 提拔晋升</div>
+                <table>
+                    <tr><th>姓名</th><th>职务</th><th>职级</th><th>政绩 (经/民/生)</th><th>关系</th><th>操作</th></tr>
+                    ${cadres.slice(0,15).map(c => `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${c.职务}</td>
+                            <td><span class="tag tag-gray">${c.职级}</span></td>
+                            <td>${c.政绩.经济}/${c.政绩.民生}/${c.政绩.生态}</td>
+                            <td><span class="tag ${c.关系值>70?'tag-green':c.关系值>45?'tag-blue':'tag-red'}">${c.关系等级} (${c.关系值})</span></td>
+                            <td><button class="btn btn-primary btn-sm" onclick="alert('提拔评分: 任职${c.任职年限}年, 政绩综合${Math.round((c.政绩.经济+c.政绩.民生+c.政绩.生态)/3)}, 背景${c.背景}')">查看评分</button></td>
+                        </tr>
+                    `).join('')}
+                </table>
+                <div class="mt-16"><i class="fas fa-info-circle"></i> 共 ${cadres.length} 名干部档案已收录</div>
+            </div>
+        `;
+        return html;
+    }
+
+    // ----- 会议管理 -----
+    function renderMeetings() {
+        const pending = appData.meetingPending;
+        const history = appData.meetingHistory;
+        let html = `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-clock"></i> 待审议事项 <span class="badge-count">${pending.length}</span></div>
+                ${pending.length === 0 ? '<p>暂无待审议事项</p>' : pending.map(m => `
+                    <div style="border:1px solid #ecf0f1;padding:12px;margin-bottom:8px;border-radius:6px;display:flex;justify-content:space-between;">
+                        <span>${m.desc}</span>
+                        <span class="tag tag-blue">${m.status}</span>
+                    </div>
+                `).join('')}
+                <button class="btn btn-success mt-16" onclick="holdStandingCommittee()"><i class="fas fa-gavel"></i> 召开市委常委会</button>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-history"></i> 会议记录</div>
+                ${history.length === 0 ? '<p>暂无会议记录</p>' : history.map(h => `
+                    <div style="border-bottom:1px solid #ecf0f1;padding:8px 0;">
+                        <div>${h.time} - <strong>${h.result}</strong></div>
+                        <div style="font-size:13px;color:#7f8c8d;">${h.items.map(i=>i.desc).join('; ')}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        return html;
+    }
+
+    // ----- 项目管理 -----
+    function renderProjects() {
+        let html = `<div class="card"><div class="card-title"><i class="fas fa-tasks"></i> 重点项目列表</div><table>
+            <tr><th>项目名称</th><th>类型</th><th>所属区县</th><th>进度</th><th>状态</th><th>负责人</th><th>操作</th></tr>`;
+        appData.projects.forEach(p => {
+            const leads = p.负责人Ids.map(id => getCadre(id)?.name || '未指定').join(', ') || '未指定';
+            html += `<tr>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.类型}</td>
+                <td>${p.区县}</td>
+                <td><div style="background:#ecf0f1;border-radius:10px;width:100px;height:8px;"><div style="background:#2980b9;width:${p.进度}%;height:8px;border-radius:10px;"></div> ${p.进度}%</div></td>
+                <td><span class="tag ${p.状态==='进行中'?'tag-green':p.状态==='已完工'?'tag-blue':'tag-red'}">${p.状态}</span></td>
+                <td>${leads}</td>
+                <td><button class="btn btn-primary btn-sm" onclick="showProjectDetail('${p.id}')">详情/负责人</button></td>
+            </tr>`;
+        });
+        html += `</table></div>`;
+        return html;
+    }
+
+    function showProjectDetail(pid) {
+        const p = getProject(pid);
+        if(!p) return;
+        const allCadres = appData.cadres;
+        const modal = document.getElementById('modalBody');
+        modal.innerHTML = `
+            <h2>${p.name} - 详情</h2>
+            <p><strong>投资:</strong> ${p.投资} | <strong>区县:</strong> ${p.区县} | <strong>进度:</strong> ${p.进度}%</p>
+            <p><strong>当前负责人:</strong> ${p.负责人Ids.map(id => getCadre(id)?.name).join(', ') || '无'}</p>
+            <hr/>
+            <h4>指定负责人</h4>
+            <div class="flex">
+                <select id="assignCadreSelect" class="btn btn-outline">
+                    ${allCadres.map(c => `<option value="${c.id}">${c.name} (${c.职务})</option>`).join('')}
+                </select>
+                <button class="btn btn-success" onclick="assignProjectLeader('${pid}')">指派</button>
+            </div>
+            <div style="margin-top:12px;font-size:13px;color:#7f8c8d;">项目进展将与负责人政绩挂钩</div>
+        `;
+        document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function assignProjectLeader(pid) {
+        const cid = document.getElementById('assignCadreSelect').value;
+        const p = getProject(pid);
+        if(!p || !cid) return;
+        if(!p.负责人Ids.includes(cid)) p.负责人Ids.push(cid);
+        const cadre = getCadre(cid);
+        if(cadre && !cadre.项目负责.includes(pid)) cadre.项目负责.push(pid);
+        alert(`✅ ${getCadre(cid)?.name} 已被指定为 ${p.name} 负责人`);
+        closeModal();
+        renderCurrentPage();
+    }
+
+    // ----- 城市发展 (含图表) -----
+    function renderDevelopment() {
+        return `
+            <div class="card"><div class="card-title"><i class="fas fa-chart-pie"></i> 全市发展概览</div>
+                <div class="grid-3">
+                    <div><span class="label">GDP</span><div style="font-size:24px;font-weight:700;">${appData.cityIndicators.GDP} 亿</div></div>
+                    <div><span class="label">财政收入</span><div style="font-size:24px;font-weight:700;">${appData.cityIndicators.财政} 亿</div></div>
+                    <div><span class="label">民生指数</span><div style="font-size:24px;font-weight:700;">${appData.cityIndicators.民生指数}</div></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-chart-bar"></i> 区县发展对比</div>
+                <div id="chartDistricts" style="height:300px;"></div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-list"></i> 区县发展定位</div>
+                ${appData.districts.map(d => `
+                    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #ecf0f1;padding:8px 0;">
+                        <span><strong>${d.name}</strong></span>
+                        <span>${d.定位}</span>
+                        <span class="tag tag-blue">GDP ${random(80,300)}亿</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderCharts() {
+        const chart = echarts.init(document.getElementById('chartDistricts'));
+        const names = appData.districts.map(d => d.name);
+        const values = names.map(() => random(60, 280));
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: names, axisLabel: { rotate: 30 } },
+            yAxis: { type: 'value', name: 'GDP (亿元)' },
+            series: [{ type: 'bar', data: values, itemStyle: { color: '#2c3e50' } }]
+        });
+        window.addEventListener('resize', () => chart.resize());
+    }
+
+    // ----- 执政班底 -----
+    function renderCabinet() {
+        const members = appData.cabinetMembers.map(id => getCadre(id)).filter(Boolean);
+        let html = `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-users"></i> 我的执政班底 (${members.length}人)</div>
+                <div class="grid-2">
+                    ${members.map(c => `
+                        <div style="border:1px solid #ecf0f1;padding:12px;border-radius:8px;">
+                            <strong>${c.name}</strong> ${c.职务}
+                            <div>关系: ${c.关系等级} (${c.关系值}) | 忠诚度: ${c.忠诚度}</div>
+                            <div class="flex mt-16">
+                                <button class="btn btn-success btn-sm" onclick="interactWithCadre('${c.id}','提升')">🤝 拉拢</button>
+                                <button class="btn btn-danger btn-sm" onclick="interactWithCadre('${c.id}','打压')">⚡ 冷落</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-balance-scale"></i> 政治关系网络</div>
+                <p>市长关系: <span class="tag ${appData.cadres.find(c=>c.职务.includes('市长'))?.关系值 > 60 ? 'tag-green' : 'tag-red'}">${appData.cadres.find(c=>c.职务.includes('市长'))?.关系等级 || '中立'}</span></p>
+                <p>全市主要官员关系分布：</p>
+                <div class="flex">
+                    <span class="tag tag-green">核心盟友 ${appData.cadres.filter(c=>c.关系值>70).length}</span>
+                    <span class="tag tag-blue">一般盟友 ${appData.cadres.filter(c=>c.关系值>50 && c.关系值<=70).length}</span>
+                    <span class="tag tag-gray">中立 ${appData.cadres.filter(c=>c.关系值>=40 && c.关系值<=50).length}</span>
+                    <span class="tag tag-red">对立/政敌 ${appData.cadres.filter(c=>c.关系值<40).length}</span>
+                </div>
+            </div>
+        `;
+        return html;
+    }
+
+    // ----- 秘书管理 -----
+    function renderSecretary() {
+        const sec = appData.secretary;
+        let html = `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user-secret"></i> 市委书记秘书</div>
+                ${sec ? `
+                    <p><strong>${sec.name}</strong> · ${sec.职务}</p>
+                    <p>任职时间: ${sec.任职时间} | 忠诚度: ${sec.忠诚度}</p>
+                    <button class="btn btn-danger" onclick="if(confirm('确认更换秘书？')){ appData.secretary=null; renderCurrentPage(); }">更换秘书</button>
+                ` : `
+                    <p>当前无秘书，请选拔：</p>
+                    <div class="flex">
+                        <select id="secSelect" class="btn btn-outline">
+                            ${appData.cadres.filter(c => c.id !== 'p1' && !c.职务.includes('市委书记')).map(c => `<option value="${c.id}">${c.name} (${c.职务})</option>`).join('')}
+                        </select>
+                        <button class="btn btn-primary" onclick="selectSecretary(document.getElementById('secSelect').value)">任命秘书</button>
+                    </div>
+                `}
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-paper-plane"></i> 秘书工作台</div>
+                <div class="flex">
+                    <input id="noticeTarget" placeholder="接收对象 (如: 华阳区)" class="btn btn-outline" style="flex:1;">
+                    <select id="noticeType" class="btn btn-outline">
+                        <option value="正式通知">正式通知</option>
+                        <option value="秘密视察">秘密视察</option>
+                        <option value="吹风">吹风 (非正式)</option>
+                    </select>
+                    <input id="noticeContent" placeholder="意图内容" class="btn btn-outline" style="flex:2;">
+                    <button class="btn btn-success" onclick="secretarySendNotice(document.getElementById('noticeTarget').value, document.getElementById('noticeType').value, document.getElementById('noticeContent').value)">发送</button>
+                </div>
+                <div style="margin-top:12px;font-size:13px;color:#7f8c8d;">通知将影响相关官员的好感度</div>
+            </div>
+        `;
+        return html;
+    }
+
+    // ----- 调研视察 -----
+    function renderInvestigate() {
+        const history = appData.investigationHistory;
+        let html = `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-search"></i> 发起调研</div>
+                <div class="grid-2">
+                    <select id="invType" class="btn btn-outline">
+                        <option value="实地调研">实地调研</option>
+                        <option value="工作视察">工作视察</option>
+                        <option value="慰问走访">慰问走访</option>
+                        <option value="四不两直">四不两直 (突击)</option>
+                        <option value="专题调研">专题调研</option>
+                    </select>
+                    <input id="invTarget" placeholder="调研对象 (部门/区县/项目)" class="btn btn-outline">
+                </div>
+                <div class="flex mt-16">
+                    <input id="invCompanions" placeholder="陪同人员 (用逗号分隔)" class="btn btn-outline" style="flex:2;">
+                    <button class="btn btn-primary" onclick="conductInvestigation(document.getElementById('invType').value, document.getElementById('invTarget').value, document.getElementById('invCompanions').value.split(',').map(s=>s.trim()).filter(Boolean))">出发调研</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-clipboard-list"></i> 调研记录</div>
+                ${history.length === 0 ? '<p>暂无调研记录</p>' : history.map(h => `
+                    <div style="border-bottom:1px solid #ecf0f1;padding:12px 0;">
+                        <div><strong>${h.type}</strong> @ ${h.target} (${h.time})</div>
+                        <div>陪同: ${h.companions}</div>
+                        <div>发现: ${h.findings}</div>
+                        <div>影响: ${h.impact>0?'+':''}${h.impact}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        return html;
+    }
+
+    // ----- 事件绑定 -----
+    function bindEvents() {
+        // 导航点击
+        document.querySelectorAll('.nav .item').forEach(el => {
+            el.onclick = () => navigate(el.dataset.page);
+        });
+    }
+
+    // ----- 辅助 -----
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('show');
+    }
+    function toggleSidebar() {
+        document.querySelector('.sidebar').style.display = document.querySelector('.sidebar').style.display === 'none' ? 'flex' : 'none';
+    }
+
+    // 点击模态框外部关闭
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+        if(e.target === this) closeModal();
+    });
+
+    // ============================================================
+    // 4. 启动
+    // ============================================================
+    navigate('dashboard');
+    console.log('🏛️ 江州市城市治理模拟系统已启动！', appData);
+</script>
+</body>
+</html>
